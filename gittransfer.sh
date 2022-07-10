@@ -1,9 +1,33 @@
-SOURCE_REPO_PATH=$1
-TARGET_REPO_PATH=$2
-SOURCE_REPO_REMOTE=$3
-FILE_WITH_FILES_TO_TRANSFER=$4
 
-BRANCH_NAME=transfer-branch
+function processArguments {
+  for arg in "@"
+  do
+    if [[ $arg == --source-path=* ]]; then
+      SOURCE_REPO_PATH=$(echo $arg | cut -d'=' -f 2)
+    elif [[ $arg == --source-remote=* ]]; then
+      SOURCE_REPO_REMOTE=$(echo $arg | cut -d'=' -f 2)
+    elif [[ $arg == --target-path=* ]]; then
+      TARGET_REPO_PATH=$(echo $arg | cut -d'=' -f 2)
+    elif [[ $arg == --remove-exclude-file=* ]]; then
+      FILE_WITH_FILES_TO_TRANSFER=$(echo $arg | cut -d'=' -f 2)
+    elif [[ $arg == --branch-name=* ]]; then
+      BRANCH_NAME=$(echo $arg | cut -d'=' -f 2)
+    elif [[ $arg == --verbose=* ]]; then
+      VERBOSE=$(echo $arg | cut -d'=' -f 2)
+    fi
+  done
+
+  if [ $VERBOSE ]; then
+    echo "SOURCE_REPO_PATH"
+    echo "TARGET_REPO_PATH"
+    echo "SOURCE_REPO_REMOTE"
+    echo "FILE_WITH_FILES_TO_TRANSFER"
+    echo "BRANCH_NAME"
+  fi
+}
+
+# handle the arguments and variable initialization
+processArguments
 
 echo "switch to source repo and create temporary branch $BRANCH_NAME"
 cd $SOURCE_REPO_PATH
