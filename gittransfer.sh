@@ -1,6 +1,6 @@
 
 function processArguments {
-  for arg in "@"
+  for arg in "$@"
   do
     if [[ $arg == --source-path=* ]]; then
       SOURCE_REPO_PATH=$(echo $arg | cut -d'=' -f 2)
@@ -18,47 +18,70 @@ function processArguments {
   done
 
   if [ $VERBOSE ]; then
-    echo "SOURCE_REPO_PATH"
-    echo "TARGET_REPO_PATH"
-    echo "SOURCE_REPO_REMOTE"
-    echo "FILE_WITH_FILES_TO_TRANSFER"
-    echo "BRANCH_NAME"
+    echo "SOURCE_REPO_PATH=$SOURCE_REPO_PATH"
+    echo "TARGET_REPO_PATH=$TARGET_REPO_PATH"
+    echo "SOURCE_REPO_REMOTE=$SOURCE_REPO_REMOTE"
+    echo "FILE_WITH_FILES_TO_TRANSFER=$FILE_WITH_FILES_TO_TRANSFER"
+    echo "BRANCH_NAME=$BRANCH_NAME"
   fi
 }
 
+function switchRepoAndCreateTemporaryBranch {
+  echo "switch to source repo and create temporary branch $BRANCH_NAME"
+  cd $1
+  pwd
+  git checkout master
+  git branch -d $BRANCH_NAME
+  git push -d origin $BRANCH_NAME
+  git checkout -b $BRANCH_NAME
+  #git push origin $BRANCH_NAME
+}
+
+function addRemoteSourceRepoToTargetRepoAndMergeBranches {
+  echo "merge changes from target temporary branch into source temporary branch"
+  git remote add source-repo $SOURCE_REPO_REMOTE
+  git fetch source-repo $BRANCH_NAME
+  git merge source-repo/$BRANCH_NAME --allow-unrelated-histories
+}
+
+function readFilesToTransferAndRemoveTheRest {
+  while IFS= read -r line
+  do
+    filesToKeep="$filesToKeep ! -name $line"
+  done < "$FILE_WITH_FILES_TO_TRANSFER"
+  echo "files to keep: $filesToKeep"
+
+  # replace the '/' characters with spaces to exclude the folders from the deletion
+  # filesToKeep=$(echo $filesToKeep | sed 's/\// /g')
+  echo "final files: $filesToKeep"
+  find . $filesToKeep -not -path "*/.git*" -delete
+  find . -name .gitignore -delete
+  echo "removed files..."
+}
+
+function commitPushChangesIntoSourceTemporaryBranch {
+  git add .
+  git commit -m 'Remove unrelated files'
+  git push origin $BRANCH_NAME
+  echo "committed and pushed changes to source temporary branch $BRANCH_NAME"
+}
+
+function doTransferOfRepos {
+
+  switchRepoAndCreateTemporaryBranch $SOURCE_REPO_PATH
+  echo ""
+  readFilesToTransferAndRemoveTheRest
+  echo ""
+
+  commitPushChangesIntoSourceTemporaryBranch
+  echo ""
+  switchRepoAndCreateTemporaryBranch $TARGET_REPO_PATH
+  echo ""
+  addRemoteSourceRepoToTargetRepoAndMergeBranches
+
+  echo "done! success! :)"
+}
+
 # handle the arguments and variable initialization
-processArguments
-
-echo "switch to source repo and create temporary branch $BRANCH_NAME"
-cd $SOURCE_REPO_PATH
-git branch -d $BRANCH_NAME
-git push origin --delete $BRANCH_NAME
-git checkout -b $BRANCH_NAME
-
-while IFS= read -r line
-do
-  filesToKeep="$filesToKeep $line"
-  echo "$filesToKeep"
-done < "$FILE_WITH_FILES_TO_TRANSFER"
-
-echo "file to keep: $filesToKeep"
-rm !($filesToKeep)
-echo "removed files..."
-
-git add .
-git commit -m 'Remove unrelated files'
-git push origin $BRANCH_NAME
-echo "committed and pushed changes to source temporary branch $BRANCH_NAME"
-
-"switching to target repo and creating temporary branch $BRANCH_NAME"
-cd $TARGET_REPO_PATH
-git branch -d $BRANCH_NAME
-git push origin --delete $BRANCH_NAME
-git checkout -b $BRANCH_NAME
-
-echo "merge changes from target temporary branch into source temporary branch"
-git remote add source-repo $SOURCE_REPO_REMOTE
-git fetch source-repo $BRANCH_NAME
-git merge source-repo$BRANCH_NAME --allow-unrelated-histories
-
-echo "done! success! :)"
+processArguments $@
+doTransferOfRepos
