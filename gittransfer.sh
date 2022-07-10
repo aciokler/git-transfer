@@ -38,4 +38,3 @@ git fetch source-repo $BRANCH_NAME
 git merge source-repo$BRANCH_NAME --allow-unrelated-histories
 
 echo "done! success! :)"
-
