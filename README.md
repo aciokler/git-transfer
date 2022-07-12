@@ -1,5 +1,5 @@
-### git-transfer
-git transfer tools
+### About this tool
+When you need to refactor files from one git repository to another it's not trivial to do so unless you don't mind loosing the history. This tool let's you refactor files between two git repositories keeping the commit history.
 
 ### sample commands
 
@@ -14,6 +14,16 @@ git transfer tools
 '--remove-exclude-file=[path to file with filenames to transfer from source repo]' \
 '--branch-name=[name of temporary git branch to use for transfer]' \
 '--verbose=[optional if you want to see extra logging]'
+```
+
+```bash
+./gittransfer.sh '--source-path=[path to source repo folder]' \
+'--source-remote=[remote git repo: git@*.git]' \
+'--target-path=[target repo folder path]' \
+'--remove-exclude-file=[path to file with filenames to transfer from source repo]' \
+'--branch-name=[name of temporary git branch to use for transfer]' \
+'--verbose=[optional if you want to see extra logging]' \
+'--dry-run=[optional flag to make a dry run]'
 ```
 
 ### parameters

@@ -64,6 +64,7 @@ function processArguments {
     printf "\n\n"
 
   validateParameters
+  readFilesToTransferAndValidate
 }
 
 function validateParameters {
@@ -89,10 +90,35 @@ function validateParameters {
   [ ! -f $FILE_WITH_FILES_TO_TRANSFER ] && printError "File '$FILE_WITH_FILES_TO_TRANSFER' is not a valid file. Exiting...\n" && exit 1
 }
 
+function readFilesToTransferAndValidate {
+  while IFS= read -r line
+  do
+    if [[ ! -z "$line" ]]; then # only append non empty lines
+      filesToKeep="$filesToKeep ! -name $line"
+    fi
+  done < "$FILE_WITH_FILES_TO_TRANSFER"
+
+  
+  printInfo "File Contents:\n"
+  echo "--------------------"
+  printf "${Purple}"
+  cat "$FILE_WITH_FILES_TO_TRANSFER"
+  printf "${Color_Off}"
+  echo "--------------------"
+
+  # exit if no files are being transferred
+  if [[ -z "$filesToKeep" ]]; then
+    printError "file $FILE_WITH_FILES_TO_TRANSFER cannot be empty\n"
+    exit 1
+  fi
+
+  [ $VERBOSE ] && printInfo "\nfinal files: $filesToKeep\n\n"
+}
+
 function switchRepoAndCreateTemporaryBranch {
-  printInfo "switch to repo in path '$1' and create temporary branch $BRANCH_NAME\n"
+  printInfo "\nSwitch to repo in path '$1' and create temporary branch $BRANCH_NAME\n"
   cd $1
-  printWarning "repo: $(pwd)\n\n"
+  printWarning "Repo: $(pwd)\n\n"
   [ $(pwd) == $HOME ] && printError "Error! should not perform deletion operations in the home folder! Exiting...\n" && exit 1
 
   printf "${Blue}"
@@ -117,35 +143,19 @@ function addRemoteSourceRepoToTargetRepoAndMergeBranches {
   git merge source-repo/$BRANCH_NAME --allow-unrelated-histories
 }
 
-function readFilesToTransferAndRemoveTheRest {
-  while IFS= read -r line
-  do
-    if [[ ! -z "$line" ]]; then # only append non empty lines
-      filesToKeep="$filesToKeep ! -name $line"
-    fi
-  done < "$FILE_WITH_FILES_TO_TRANSFER"
-
-  
-  [ $VERBOSE ] &&  printInfo "File Contents:\n" && cat "$FILE_WITH_FILES_TO_TRANSFER"
-
-  # exit if no files are being transferred
-  if [[ -z "$filesToKeep" ]]; then
-    printError "file $FILE_WITH_FILES_TO_TRANSFER cannot be empty\n"
-    exit 1
-  fi
-
-  [ $VERBOSE ] && printInfo "final files: $filesToKeep\n\n"
-
+function performDryOrNormalRemoval {
   if [ $DRY_RUN ]; then
     printf "${Yellow}ATTENTION!!!!${Color_Off} Performing a dry run! The following files are candidates to be deleted:\n"
     echo ""
+    printf "${Red}"
     find $SOURCE_REPO_PATH $filesToKeep -not -path "*/.git*"
+    printf "${Color_Off}"
   else
-    actualDeletion
+    removeFilesNotBeingTransferred
   fi
 }
 
-function actualDeletion {
+function removeFilesNotBeingTransferred {
     printf "${Yellow}ATTENTION!!!!${Color_Off} The following files will be deleted:\n"
     echo ""
     
@@ -186,16 +196,17 @@ function doTransferOfRepos {
 
   switchRepoAndCreateTemporaryBranch $SOURCE_REPO_PATH
   echo ""
-  readFilesToTransferAndRemoveTheRest
+  performDryOrNormalRemoval
   echo ""
 
-  commitPushChangesIntoSourceTemporaryBranch
-  echo ""
-  switchRepoAndCreateTemporaryBranch $TARGET_REPO_PATH
-  echo ""
-  addRemoteSourceRepoToTargetRepoAndMergeBranches
-
-  printSuccess "\n\ndone! success! :)\n\n"
+  if [ ! $DRY_RUN ]; then
+    commitPushChangesIntoSourceTemporaryBranch
+    echo ""
+    switchRepoAndCreateTemporaryBranch $TARGET_REPO_PATH
+    echo ""
+    addRemoteSourceRepoToTargetRepoAndMergeBranches
+  fi
+  printSuccess "\n\nDone! Success! :)\n\n"
 }
 
 # handle the arguments and variable initialization
