@@ -137,7 +137,8 @@ function switchRepoAndCreateTemporaryBranch {
 }
 
 function addRemoteSourceRepoToTargetRepoAndMergeBranches {
-  printInfo "merge changes from target temporary branch into source temporary branch\n"
+  printInfo "merge changes from source temporary branch into target temporary branch\n"
+  git remote remove source-repo
   git remote add source-repo $SOURCE_REPO_REMOTE
   git fetch source-repo $BRANCH_NAME
   git merge source-repo/$BRANCH_NAME --allow-unrelated-histories
